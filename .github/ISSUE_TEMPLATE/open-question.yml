@@ -1,0 +1,24 @@
+name: "❓ Open question / discussion"
+description: Raise or engage with an open research question for the standard.
+title: "[Question]: "
+labels: ["question", "discussion", "open-question"]
+body:
+  - type: input
+    id: related
+    attributes:
+      label: Related open question (optional)
+      description: If it maps to one of the open discussions, note the number.
+      placeholder: "#1, cross-ledger atomicity"
+  - type: textarea
+    id: question
+    attributes:
+      label: The question
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: What does resolving this unblock or change for the standard?
+    validations:
+      required: true

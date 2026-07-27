@@ -1,0 +1,54 @@
+name: "⚙️ Repository / tooling"
+description: Issues with CI, workflows, build tooling, or repo documentation, not the whitepaper's content.
+title: "[Repo]: "
+labels: ["tooling", "infrastructure"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for anything about how the repository *works*, rather than what
+        the whitepaper *says*. For feedback on the document itself, please use
+        the content feedback or correction templates.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - GitHub Actions / CI workflow
+        - Document build or rendering (PDF, DOCX, HTML)
+        - Markdown linting / formatting / link checking
+        - README or repo documentation
+        - CONTRIBUTING / governance docs
+        - Issue or PR templates
+        - Licensing, DCO, or SPDX headers
+        - Repository settings or structure
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type
+      options:
+        - Something is broken
+        - Improvement or new automation
+        - Question about the setup
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What's the problem or proposed change?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior (optional)
+      description: For broken things, what should happen instead?
+  - type: textarea
+    id: links
+    attributes:
+      label: Relevant links (optional)
+      description: Failing workflow run, specific file, or related issue or PR.

@@ -1,0 +1,30 @@
+name: "🔧 Correction / erratum"
+description: Report a factual error, typo, broken link, or incorrect citation.
+title: "[Correction]: "
+labels: ["correction"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Section, table, or reference number where the error appears.
+      placeholder: "Section 7, issuer comparison table"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's incorrect
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Suggested correction
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Supporting source (optional)
+      description: A link or citation backing the correction. Helpful for factual or data fixes.

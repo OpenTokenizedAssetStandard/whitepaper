@@ -1,0 +1,29 @@
+name: "➕ New content proposal"
+description: Propose new material, such as a section, example, issuer archetype, or reference flow.
+title: "[Proposal]: "
+labels: ["proposal", "enhancement"]
+body:
+  - type: input
+    id: what
+    attributes:
+      label: What to add
+      placeholder: "A reference flow for cross-border PvP settlement"
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where it fits
+      description: Which section, or a new one?
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Rationale
+      description: Why does the whitepaper need this?
+    validations:
+      required: true
+  - type: textarea
+    id: draft
+    attributes:
+      label: Draft text (optional)
+      description: A rough draft or bullet points, if you have them.

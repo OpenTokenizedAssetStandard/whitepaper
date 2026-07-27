@@ -1,0 +1,44 @@
+name: "📝 Content feedback / review comment"
+description: Comment on, question, or push back on a specific part of the whitepaper.
+title: "[Feedback]: "
+labels: ["feedback", "review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reviewing the OTAS whitepaper draft. This is an open draft for
+        community discussion, all perspectives are welcome. Please keep comments
+        specific and constructive.
+  - type: input
+    id: section
+    attributes:
+      label: Section / heading
+      description: Which section is this about? (e.g. "6.1 Settlement Networks")
+      placeholder: "6.3 Compliance"
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type of feedback
+      options:
+        - Clarity / readability
+        - Technical accuracy
+        - Disagreement with a claim
+        - Missing nuance or counterpoint
+        - Scope (too much / too little)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: comment
+    attributes:
+      label: Your feedback
+      description: What's the issue, and what's your reasoning?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested change (optional)
+      description: Proposed rewording or alternative framing, if you have one.
