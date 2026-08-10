@@ -1,23 +1,35 @@
-# Open Tokenized Asset Standard (OTAS) — Whitepaper
+# Open Tokenized Asset Standard (OTAS): Whitepaper
 
-This repository holds the **OTAS community whitepaper**, a draft exploring whether a small set of composable token primitives can serve as a convergence layer for post-trade clearing, settlement, and compliance across heterogeneous distributed ledgers.
+[![LFDT Lab](https://img.shields.io/badge/LF%20Decentralized%20Trust-Lab-blue)](https://www.lfdecentralizedtrust.org/)  [![Status: Draft v0.1](https://img.shields.io/badge/status-draft%20v0.1-orange)](./whitepaper.md)  [![License: CC BY 4.0](https://img.shields.io/badge/license-CC--BY--4.0-lightgrey)](./LICENSE)
+
+The **OTAS community whitepaper** explores whether a small set of composable token primitives can serve as a convergence layer for post-trade clearing, settlement, and compliance across heterogeneous distributed ledgers.
 
 OTAS is a lab under [LF Decentralized Trust (LFDT)](https://www.lfdecentralizedtrust.org/).
+
+## The idea in brief
+
+Tokenized assets are proliferating across incompatible ledgers, so the same instrument tokenized by different institutions becomes several incompatible objects, each with its own token schema, identity model, compliance enforcement, and metadata. Liquidity is fragmented and compliance work is duplicated.
+
+OTAS explores a thin, protocol-agnostic **interface layer** that standardizes the shared *functions* at the seams between systems (settlement, identity, compliance, and asset metadata), rather than the internal representation of the asset or a new ledger.
 
 ## Read the whitepaper
 
 **[OTAS Whitepaper v0.1 (draft for review)](./whitepaper.md)**
 
-It surveys existing token standards (ERC-20/1400/3643, Sui Move, Solana Token-2022, Fabric/Panurus, the Token Taxonomy Framework), proposes a primitive/behavior/event model, and develops four layers — Settlement, Identity, Compliance, and Asset Metadata — plus a comparison of bank, financial-firm, and sovereign issuer archetypes.
+It surveys existing token standards across the EVM, Sui, Solana, and Hyperledger ecosystems, proposes a composable primitive/behavior/event model, and develops four layers (Settlement, Identity, Compliance, and Asset Metadata) alongside a comparison of bank, financial-firm, and sovereign issuers, set against a fast-evolving regulatory landscape.
 
 > This is a draft community whitepaper published for review and feedback. Its contents are subject to change and do not constitute legal, regulatory, financial, or investment advice. See the disclaimer in the whitepaper for details.
 
-## Join the discussion
+## Getting involved
 
-The whitepaper deliberately ends with open questions rather than a finished specification. Each is being worked through in the **[Discussions tab](../../discussions)** under the **Q&A** category (look for the `[Open Question]` prefix). Weigh in, propose answers, or point us to prior art — this is the primary input to the next revision.
+OTAS is an open source LFDT effort and welcomes researchers, protocol developers financial-markets practitioners, technical writers, and reviewers. See the [contribution guidelines](./CONTRIBUTING.md) for how to get started, and the [Code of Conduct](./CODE_OF_CONDUCT.md) for our community standards. All commits must be signed off under the Developer Certificate of Origin (DCO).
 
-## Contributing
+### Join the discussion
 
-OTAS is an open source LFDT effort and welcomes researchers, protocol developers, financial-markets practitioners, technical writers, and reviewers. Contributions require a signed Developer Certificate of Origin (DCO). Specification material is intended for the Community Specification License 1.0 and reference code for Apache 2.0.
+The whitepaper is an open draft that ends with open questions rather than a finished specification, and community input is the primary driver of each revision. Browse the **[Discussions](https://github.com/OpenTokenizedAssetStandard/whitepaper/discussions)** for open questions and direction (look for the `[Open Question]` prefix), and check the **[open issues](https://github.com/OpenTokenizedAssetStandard/whitepaper/issues)**. Weigh in where it fits your expertise: propose an answer, challenge an assumption, or point us to prior work.
 
-To get involved: read the whitepaper, browse the open questions in Discussions, and jump into the ones in your area of expertise.
+New to the project? **[Introduce yourself in the welcome discussion](https://github.com/OpenTokenizedAssetStandard/whitepaper/discussions/7)**.
+
+## License
+
+The whitepaper in this repository is licensed under [CC-BY-4.0](./LICENSE) (Creative Commons Attribution 4.0 International).
