@@ -1,6 +1,6 @@
 # Open Tokenized Asset Standard (OTAS): Whitepaper
 
-[![LFDT Lab](https://img.shields.io/badge/LF%20Decentralized%20Trust-Lab-blue)](https://www.lfdecentralizedtrust.org/)  [![Status: Draft v0.1](https://img.shields.io/badge/status-draft%20v0.1-orange)](./whitepaper.md)  [![License: CC BY 4.0](https://img.shields.io/badge/license-CC--BY--4.0-lightgrey)](./LICENSE)
+[![LFDT Lab](https://img.shields.io/badge/LF%20Decentralized%20Trust-Lab-blue)](https://www.lfdecentralizedtrust.org/)  [![Status: Draft v0.1](https://img.shields.io/badge/status-draft%20v0.1-orange)](./whitepaper.md)  [![License: CC BY 4.0](https://img.shields.io/badge/license-CC--BY--4.0-lightgrey)](./LICENSE.md)
 
 The **OTAS community whitepaper** explores whether a small set of composable token primitives can serve as a convergence layer for post-trade clearing, settlement, and compliance across heterogeneous distributed ledgers.
 
@@ -32,4 +32,4 @@ New to the project? **[Introduce yourself in the welcome discussion](https://git
 
 ## License
 
-The whitepaper in this repository is licensed under [CC-BY-4.0](./LICENSE) (Creative Commons Attribution 4.0 International).
+The whitepaper in this repository is licensed under [CC-BY-4.0](./LICENSE.md) (Creative Commons Attribution 4.0 International).
