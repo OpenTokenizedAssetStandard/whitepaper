@@ -112,14 +112,15 @@ The EVM ecosystem standardizes token interfaces via ERC specifications layered o
 
 ### 4.2 Sui: the Move object model
 
-Sui represents assets as **typed objects**, each with a unique ID, rather than as balances in a contract. Because objects are inherently unique, Sui needs no ERC-721 analogue. Its fungible-asset standards are:
+Sui represents assets as **typed objects**, each with a unique ID, rather than as balances in a contract. Because objects are inherently unique, Sui needs no ERC-721 analogue. Its fungible-asset standards, and the mechanisms layered over them, are:
 
 - **Coin\<T\> / Currency (open-loop).** Freely transferable, wrappable, storable fungible tokens, with metadata managed through a **Coin Registry** (a shared system object) that unifies metadata, supply tracking, and regulatory status. Supply models can be **fixed, burn-only, or uncontrolled**.
-- **Token\<T\> (closed-loop).** A restricted type (it has the `key` ability but not `store`), so it cannot be freely transferred, wrapped, or stored in arbitrary applications. Its permitted actions are governed by a **TokenPolicy** that attaches per-action rules (allow-list, deny-list, spend limits, verification requirements) and resolves each action via an `ActionRequest`. This is a clean model for assets that may only move within an authorized perimeter.
+- **Address Balances (account-style accrual over the object model).** A canonical balance per `(address, coin type)` pair, addressing the operational friction of treating fungible value as a set of discrete `Coin<T>` objects that must be split before spending and merged after receipt. Funds sent with `coin::send_funds` or `balance::send_funds` accrue automatically into a single balance for that address and type, and are drawn back out as objects via `redeem_funds` when a call site needs a `Coin<T>`. Because the balance is addressable directly, gas can be paid from it with an empty gas-payment list. Address balances do not replace the object model; they are an optional account-style layer over it, and the two coexist for the same coin type.
+- **Permissioned Asset Standard (PAS).** Sui's standard for assets whose movement must be conditioned on issuer or third-party approval, and the current successor to the closed-loop token for regulated and institutionally held assets. Ownership sits in a shared **`Account`** object (one per address, created permissionlessly, deterministically derived from a system **`Namespace`**), and each managed asset type carries a **`Policy<T>`** declaring which approvals each action requires across `send_funds`, `unlock_funds`, and `clawback_funds`. Every state change follows a **create -> approve -> resolve** request pattern: the account emits a `Request<SendFunds<T>>` (or the clawback/unlock equivalent), one or more packages stamp it via `request.approve(MyWitness())`, and resolution succeeds only when the collected approval witnesses, matched by `TypeName`, are exactly those the policy names. The request is a hot potato, so it must resolve within the same transaction or the transaction aborts. Two properties matter for a convergence layer. First, the guarantee is genuinely **closed-loop**: a managed asset cannot leave the system except through a request with matching approvals, which is why enabling `unlock_funds` is explicitly the escape hatch that voids all future transfer control. Second, PAS deliberately **does not decide policy**. It standardizes the approval-gating mechanism and leaves eligibility logic to the issuer's approval-witness code, while `clawback_funds` provides a native seizure/forced-transfer path gated by that same policy.
+- **Token\<T\> (closed-loop).** The earlier restricted type (it has the `key` ability but not `store`), so it cannot be freely transferred, wrapped, or stored in arbitrary applications. Its permitted actions are governed by a **TokenPolicy** that attaches per-action rules (allow-list, deny-list, spend limits, verification requirements) and resolves each action via an `ActionRequest`. Its enduring fit is **isolated in-app value**: service-specific currencies, loyalty and reward points, and similar balances that never need to circulate beyond a single application's perimeter. For regulated assets that must interoperate with external counterparties, PAS supersedes it.
 
-Control is **capability-based**: a `TreasuryCap` authorizes mint/burn; a `DenyCapV2` plus the system **DenyList** object enables regulated coins to block specific addresses and to trigger a **global pause**; a `MetadataCap` governs metadata mutability. Capabilities are themselves transferable objects, which makes delegation of issuance/administration explicit and auditable, but also means capability custody is security-critical.
+Control is **capability-based**: a `TreasuryCap` authorizes mint/burn and, under PAS, the one-time creation of a `Policy<T>` for a currency; a `PolicyCap<T>` authorizes changing which approvals an action requires; a `DenyCapV2` plus the system **DenyList** object enables regulated coins to block specific addresses and to trigger a **global pause**; a `MetadataCap` governs metadata mutability. Capabilities are themselves transferable objects, which makes delegation of issuance/administration explicit and auditable, but also means capability custody is security-critical.
 
-**Takeaway.** Sui externalizes compliance into policies and capabilities attached to typed objects, where the EVM externalizes it into registries and modular compliance contracts, and Solana internalizes it into mint extensions. These are three genuinely different placements of the same logic.
 
 ### 4.3 Solana: SPL and Token-2022 extensions
 
@@ -155,14 +156,14 @@ combined into a shorthand **"Token Formula."** The TTF's explicit goal is a comm
 
 | Dimension | Ethereum / EVM | Sui (Move) | Solana (Token-2022) | Fabric Token SDK / Panurus | TTF (meta-model) |
 |:-:|:-:|:-:|:-:|:-:|:-:|
-| **State model** | Account/balance | Object (typed, unique-ID) | Account (mint + token accounts) | UTXO (DAG) | Abstracts both |
+| **State model** | Account/balance | Object (typed, unique-ID); optional address balances | Account (mint + token accounts) | UTXO (DAG) | Abstracts both |
 | **Fungible primitive** | ERC-20 | Coin\<T\>/Currency | SPL mint | UTXO token | Token Base (common) |
 | **Unique primitive** | ERC-721/1155 | Native objects | NFT via metadata | UTXO token | Token Base (unique) |
-| **Where compliance lives** | Registries + modular compliance (ERC-3643) | **TokenPolicy** rules + capabilities | Mint **extensions** + transfer hooks | Chaincode + selective disclosure | Behaviors / property sets |
-| **Identity binding** | ONCHAINID (ERC-734/735) | External / object-linked | Account state / external | Org identity (MSP) | Property set |
-| **Admin control** | Owner/Agent roles, freeze, forced transfer | Treasury/Deny caps, global pause | Permanent delegate, pause | Issuer keys | "controllable/pausable" behaviors |
+| **Where compliance lives** | Registries + modular compliance (ERC-3643) | **PAS** `Policy<T>` + approval witnesses (legacy: TokenPolicy) | Mint **extensions** + transfer hooks | Chaincode + selective disclosure | Behaviors / property sets |
+| **Identity binding** | ONCHAINID (ERC-734/735) | External, checked inside PAS approval witnesses | Account state / external | Org identity (MSP) | Property set |
+| **Admin control** | Owner/Agent roles, freeze, forced transfer | Treasury/Policy/Deny caps, PAS clawback, global pause | Permanent delegate, pause | Issuer keys | "controllable/pausable" behaviors |
 | **Privacy of amounts** | Public (or L2/ZK) | Public (or app-level) | Confidential transfers (ZK) | Native selective disclosure | Out of model |
-| **Composability anchor** | ERC-20 compatibility | Capabilities + policies | Extension stacking | UTXO graph | Token Formula |
+| **Composability anchor** | ERC-20 compatibility | Capabilities, policies, approval requests | Extension stacking | UTXO graph | Token Formula |
 
 **Gap analysis.** Across all of them, four functions recur but are expressed incompatibly: (1) who may hold/transfer (identity + eligibility), (2) under what rules (compliance), (3) how value finally changes hands (settlement/atomicity), and (4) what the token represents and how it is serviced (metadata + lifecycle). These four recurring functions are exactly the OTAS layers, and they are the right altitude for standardization: **the function is mutual across institutions; the internal asset representation is not.**
 
@@ -200,16 +201,16 @@ This is intentionally a strawman to be torn apart in review, expressed as neutra
 
 - `Issued`, `Transferred`, `Burned`, `Frozen`/`Unfrozen`, `ForcedTransfer`, `Paused`/`Unpaused`, `EligibilityChecked(result)`, `SettlementProposed`/`Settled`/`Aborted`, `ServicingEvent(type)`, `MetadataAnchored(hash)`.
 
-**Discovery.** A token should expose a machine-readable capability/behavior manifest (which behaviors it implements, which policy/registry it points to, which metadata anchor it uses), so a counterparty's system can determine compatibility before transacting, analogous to Sui's on-chain TokenPolicy discovery and ERC-3643's pre-trade `canTransfer` check.
+**Discovery.** A token should expose a machine-readable capability/behavior manifest (which behaviors it implements, which policy/registry it points to, which metadata anchor it uses), so a counterparty's system can determine compatibility before transacting, analogous to a Sui PAS `Policy<T>`, whose required approvals are readable before a request is submitted, and to ERC-3643's pre-trade `canTransfer` check.
 
 ### 5.3 Mapping the model onto environments
 
 | Primitive/behavior | EVM expression | Sui expression | Solana expression | Fabric/UTXO expression |
 |:-:|:-:|:-:|:-:|:-:|
-| **FungibleBase** | ERC-20 | Coin\<T\>/Currency | SPL mint | UTXO token |
-| **Restricted** | ERC-3643 canTransfer/isVerified | TokenPolicy rule | Transfer hook | Chaincode endorsement |
-| **Freezable** | Agent freeze | DenyList + DenyCap | Default-state / permanent delegate | Issuer policy |
-| **ForceTransferable** | ERC-3643 forced transfer | Capability-gated function | Permanent delegate | Issuer-signed tx |
+| **FungibleBase** | ERC-20 | Coin\<T\>/Currency (object or address balance) | SPL mint | UTXO token |
+| **Restricted** | ERC-3643 canTransfer/isVerified | PAS `Policy<T>` + approval witness | Transfer hook | Chaincode endorsement |
+| **Freezable** | Agent freeze | DenyList + DenyCap; withheld PAS approval | Default-state / permanent delegate | Issuer policy |
+| **ForceTransferable** | ERC-3643 forced transfer | PAS `clawback_funds` | Permanent delegate | Issuer-signed tx |
 | **ConfidentialAmount** | L2s/ZK | App-level/ZK | Confidential transfer ext. | Native selective disclosure |
 | **MetadataAnchored** | Token URI / registry | Coin Registry / object field | Metadata pointer | On-chain ref + off-chain store |
 
@@ -259,7 +260,7 @@ The OTAS community has prioritized four layers. We treat each as a function to b
 **Where compliance executes: three patterns observed.**
 
 - **Registry + modular compliance contracts** (ERC-3643): rules are on-chain modules evaluated at transfer.
-- **Per-action policy rules** (Sui TokenPolicy): rules attached to actions, resolved via ActionRequest.
+- **Per-action policy plus typed approvals** (Sui PAS): a `Policy<T>` declares which approval witnesses each action requires, and a request resolves only when the witnesses collected match that set exactly.
 - **Transfer-time program hooks** (Solana transfer hooks; Fabric endorsement): custom logic invoked on movement.
 
 **What a standard should do here.** Standardize the **compliance-signaling interface and result semantics**, not the rule engine. Concretely: a `canTransfer(from, to, amount, context) -> {allow | deny + reason-code}` contract with **standard, machine-readable reason codes** (e.g., `INELIGIBLE_RECEIVER`, `JURISDICTION_BLOCKED`, `HOLDER_CAP_EXCEEDED`, `LOCKUP_ACTIVE`, `SANCTIONS_HIT`, `TRAVEL_RULE_PENDING`), a **pre-trade check** so failures are knowable before submission, and a **Travel-Rule handshake hook** that references an off-chain VASP-to-VASP exchange (e.g., TRP/TAP-style protocols) rather than embedding identity data on-chain. Privacy-enhancing techniques (selective disclosure, ZK) should be first-class, so compliance can be proven without data exposure. The rules themselves, and how aggressively they are enforced, remain the implementer's value layer and jurisdictional responsibility.
@@ -326,7 +327,7 @@ These narrative flows illustrate how the primitives compose. They are conceptual
 **Flow C: Sanctions/eligibility revocation.**
 
 1. A holder's credential is revoked; the identity layer's verification now returns false.
-2. The token's `Restricted` behavior blocks new transfers (`SANCTIONS_HIT`/`INELIGIBLE`); issuer/agent may invoke `Freezable`/`ForceTransferable` per policy, using whichever native control the rail provides (EVM agent freeze, Sui DenyList, Solana permanent delegate).
+2. The token's `Restricted` behavior blocks new transfers (`SANCTIONS_HIT`/`INELIGIBLE`); issuer/agent may invoke `Freezable`/`ForceTransferable` per policy, using whichever native control the rail provides (EVM agent freeze, Sui DenyList or PAS `clawback_funds`, Solana permanent delegate).
 
 ## 9. Relationship to Prior and Academic Work
 
@@ -349,11 +350,13 @@ This inquiry stands on substantial existing work and should cite and defer to it
 - **Travel Rule:** FATF requirement to transmit originator/beneficiary information between obliged entities.
 - **UTXO / account / object model:** three on-chain accounting paradigms the standard must abstract over.
 - **Capability:** a transferable authority object (e.g., Sui TreasuryCap) gating privileged actions.
+- **Address balance:** on Sui, a canonical per-address, per-coin-type balance that funds accrue into automatically, offered as an account-style alternative to holding discrete `Coin<T>` objects.
+- **Approval witness:** a zero-sized type whose presence proves that a given package approved an action; Sui PAS resolves a request only when the witnesses collected match the policy exactly.
 - **Token Formula:** TTF shorthand combining a token base with behaviors and property sets.
 
 ### 10.2 Standards & projects index (for the survey)
 
-EVM: ERC-20, ERC-721, ERC-1155, ERC-1400, ERC-3643/T-REX, ERC-4626, ERC-734/735 (ONCHAINID). Sui: Coin/Currency, Closed-Loop Token, Coin Registry, DenyList, capabilities. Solana: SPL Token, Token-2022 extensions. Enterprise: Hyperledger Fabric Token SDK / Panurus, Besu, Corda. Meta-model: InterWork Alliance TTF. Identity/compliance: W3C DID & VC, OpenID4VC/VP, ToIP, eIDAS 2.0, FATF Travel Rule, MiCA/AMLR, GENIUS Act. Settlement: BIS Agorá/Helvetia/Jura/mBridge/Dunbar, Partior, Fnality, RLN/RSN, SDX, Euroclear D-FMI, DTCC, J.P. Morgan Kinexys.
+EVM: ERC-20, ERC-721, ERC-1155, ERC-1400, ERC-3643/T-REX, ERC-4626, ERC-734/735 (ONCHAINID). Sui: Coin/Currency, Address Balances, Permissioned Asset Standard (PAS), Closed-Loop Token, Coin Registry, DenyList, capabilities. Solana: SPL Token, Token-2022 extensions. Enterprise: Hyperledger Fabric Token SDK / Panurus, Besu, Corda. Meta-model: InterWork Alliance TTF. Identity/compliance: W3C DID & VC, OpenID4VC/VP, ToIP, eIDAS 2.0, FATF Travel Rule, MiCA/AMLR, GENIUS Act. Settlement: BIS Agorá/Helvetia/Jura/mBridge/Dunbar, Partior, Fnality, RLN/RSN, SDX, Euroclear D-FMI, DTCC, J.P. Morgan Kinexys.
 
 ### 10.3 How to contribute
 
@@ -374,7 +377,7 @@ Contributions require a signed Developer Certificate of Origin (DCO). Specificat
 5. Ethereum. EIP-3643 (T-REX). https://eips.ethereum.org/EIPS/eip-3643 ; ERC-3643 Association: https://www.erc3643.org/
 6. Tokeny. ERC-3643 overview and ERC-3643 vs ERC-1400. https://tokeny.com/erc3643/ ; https://tokeny.com/erc3643-vs-erc1400/
 7. Chainalysis. "Introduction to ERC-3643." https://www.chainalysis.com/blog/introduction-to-erc-3643-ethereum-rwa-token-standard/
-8. Sui. Coin/Currency Standard, Closed-Loop Token, Token Policy, Regulated Currencies & DenyList. https://docs.sui.io/standards/currency ; https://docs.sui.io/standards/closed-loop-token ; https://docs.sui.io/guides/developer/coin/regulated
+8. Sui. Coin/Currency Standard, Address Balances, Permissioned Asset Standard (PAS), Closed-Loop Token, Regulated Currencies & DenyList. https://docs.sui.io/standards/currency ; https://docs.sui.io/onchain-finance/asset-custody/address-balances/using-address-balances ; https://docs.sui.io/onchain-finance/pas/ ; PAS architecture: https://docs.sui.io/onchain-finance/pas/pas-architecture ; PAS workflows: https://docs.sui.io/onchain-finance/pas/pas-workflows ; https://docs.sui.io/onchain-finance/closed-loop-token/ ; https://docs.sui.io/guides/developer/coin/regulated
 9. Solana. Token Extensions (Token-2022) docs. https://solana.com/docs/tokens/extensions ; Chainstack overview: https://docs.chainstack.com/docs/solana-token-extensions
 10. InterWork Alliance. Token Taxonomy Framework. https://github.com/InterWorkAlliance/TokenTaxonomyFramework/blob/main/token-taxonomy.md ; https://www.gbbc.io/interwork-alliance/token-taxonomy-framework
 11. BIS. Project Agorá. https://www.bis.org/about/bisih/topics/fmis/agora.htm
