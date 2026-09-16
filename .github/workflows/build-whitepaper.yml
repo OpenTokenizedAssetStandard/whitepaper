@@ -46,11 +46,27 @@ jobs:
             texlive-fonts-recommended \
             lmodern
 
+      - name: Prepare table-fitting filter
+        run: |
+          cat > fit-tables.lua <<'LUA'
+          function Table(tbl)
+            local n = #tbl.colspecs
+            if n > 0 then
+              local w = 0.98 / n
+              for i = 1, n do
+                tbl.colspecs[i] = { tbl.colspecs[i][1], w }
+              end
+            end
+            return tbl
+          end
+          LUA
+
       - name: Prepare LaTeX header
         run: |
           cat > build-header.tex <<'TEX'
           \usepackage{etoolbox}
           \AtBeginEnvironment{longtable}{\footnotesize}
+          \setlength{\tabcolsep}{4pt}
           TEX
 
       - name: Build the LaTeX source
@@ -58,6 +74,7 @@ jobs:
           pandoc whitepaper.md \
             --from gfm \
             --standalone \
+            --lua-filter=fit-tables.lua \
             --include-in-header=build-header.tex \
             -V geometry:margin=1in \
             -V colorlinks=true \
@@ -70,6 +87,7 @@ jobs:
           pandoc whitepaper.md \
             --from gfm \
             --pdf-engine=xelatex \
+            --lua-filter=fit-tables.lua \
             --include-in-header=build-header.tex \
             -V geometry:margin=1in \
             -V colorlinks=true \
@@ -91,5 +109,5 @@ jobs:
             Commit `${{ steps.version.outputs.sha }}` (${{ steps.version.outputs.date }}).
 
             Assets:
-            - `OTAS-Whitepaper-draft.pdf` — rendered PDF
-            - `OTAS-Whitepaper-draft.tex` — generated LaTeX source
+            - `OTAS-Whitepaper-draft.pdf` - rendered PDF
+            - `OTAS-Whitepaper-draft.tex` - generated LaTeX source
