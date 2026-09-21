@@ -2,7 +2,7 @@ name: Build whitepaper PDF and LaTeX
 
 on:
   push:
-    branches: ["whitepaper-v0.1"]
+    branches: ["main", "whitepaper-v0.2"]
     paths:
       - "whitepaper.md"
       - ".github/workflows/build-whitepaper.yml"
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: whitepaper-pdf
+  group: whitepaper-pdf-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -34,6 +34,17 @@ jobs:
         run: |
           echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           echo "date=$(git show -s --format=%cs HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Determine release target
+        id: rel
+        run: |
+          if [ "${{ github.ref_name }}" = "whitepaper-v0.2" ]; then
+            echo "tag=v0.2-latest" >> "$GITHUB_OUTPUT"
+            echo "name=OTAS Whitepaper v0.2 (latest)" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=draft-latest" >> "$GITHUB_OUTPUT"
+            echo "name=OTAS Whitepaper (latest draft)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install pandoc and LaTeX
         run: |
@@ -95,17 +106,17 @@ jobs:
             -V urlcolor=blue \
             -o OTAS-Whitepaper-draft.pdf
 
-      - name: Publish PDF and LaTeX to the rolling draft release
+      - name: Publish PDF and LaTeX to the release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: draft-latest
-          name: OTAS Whitepaper (latest draft)
+          tag_name: ${{ steps.rel.outputs.tag }}
+          name: ${{ steps.rel.outputs.name }}
           prerelease: true
           files: |
             OTAS-Whitepaper-draft.pdf
             OTAS-Whitepaper-draft.tex
           body: |
-            Automatically built from `whitepaper.md`.
+            Automatically built from `whitepaper.md` on `${{ github.ref_name }}`.
             Commit `${{ steps.version.outputs.sha }}` (${{ steps.version.outputs.date }}).
 
             Assets:
