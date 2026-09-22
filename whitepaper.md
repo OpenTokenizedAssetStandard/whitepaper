@@ -216,6 +216,15 @@ This is intentionally a strawman to be torn apart in review, expressed as neutra
 
 The point of the table is that **the same function has a home in every environment**, which is precisely what makes a thin interface standard feasible rather than utopian.
 
+### 5.4 Modeling an existing token as an OTAS object: native vs. observed
+
+The primitives in Section 5.2 describe a token as a base type plus behaviors plus a capability manifest. A token already deployed on a rail does not necessarily carry those OTAS labels, so before reference flows like those in Section 8 can treat it uniformly, its native facts have to be read in OTAS terms somehow. It may help to picture this as a spectrum, with two ends worth naming:
+
+- **Native mapping.** The token is issued to conform, with its base type, behaviors, and capability manifest declared against OTAS conventions from the start (for example, an ERC-3643 deployment, or a Sui PAS `Policy<T>` whose required approvals are published as the token's compliance behavior). Here the OTAS description tends to originate with the issuer.
+- **Observed mapping.** The token predates or ignores OTAS, and tooling infers a description by reading on-chain facts (interfaces implemented, registries and policies referenced, extensions enabled, capability objects held). Such a description is only as reliable as what the chain exposes: some properties are directly observable, others may not be confirmable from on-chain state alone.
+
+Most real tokens will likely sit somewhere between these ends. Where a given case falls, and how much corroboration an observed description needs before a counterparty relies on it, is left open here. For the flows that follow, the point is only that they operate on the same OTAS object either way; what differs is where its description came from.
+
 ## 6. The Four Layers in Depth
 
 The OTAS community has prioritized four layers. We treat each as a function to be standardized at its lowest common denominator, and we add two cross-cutting concerns.
@@ -263,7 +272,9 @@ The OTAS community has prioritized four layers. We treat each as a function to b
 - **Per-action policy plus typed approvals** (Sui PAS): a `Policy<T>` declares which approval witnesses each action requires, and a request resolves only when the witnesses collected match that set exactly.
 - **Transfer-time program hooks** (Solana transfer hooks; Fabric endorsement): custom logic invoked on movement.
 
-**What a standard should do here.** Standardize the **compliance-signaling interface and result semantics**, not the rule engine. Concretely: a `canTransfer(from, to, amount, context) -> {allow | deny + reason-code}` contract with **standard, machine-readable reason codes** (e.g., `INELIGIBLE_RECEIVER`, `JURISDICTION_BLOCKED`, `HOLDER_CAP_EXCEEDED`, `LOCKUP_ACTIVE`, `SANCTIONS_HIT`, `TRAVEL_RULE_PENDING`), a **pre-trade check** so failures are knowable before submission, and a **Travel-Rule handshake hook** that references an off-chain VASP-to-VASP exchange (e.g., TRP/TAP-style protocols) rather than embedding identity data on-chain. Privacy-enhancing techniques (selective disclosure, ZK) should be first-class, so compliance can be proven without data exposure. The rules themselves, and how aggressively they are enforced, remain the implementer's value layer and jurisdictional responsibility.
+**What a standard should do here.** Standardize the **compliance-signaling interface and result semantics**, not the rule engine. Concretely: a `canTransfer(from, to, amount, context) -> {allow | deny + reason-code}` contract with **standard, machine-readable reason codes** (e.g., `INELIGIBLE_RECEIVER`, `JURISDICTION_BLOCKED`, `HOLDER_CAP_EXCEEDED`, `LOCKUP_ACTIVE`, `SANCTIONS_HIT`, `TRAVEL_RULE_PENDING`), a **pre-settlement check** so failures are knowable before a settlement instruction is submitted, and a **Travel-Rule handshake hook** that references an off-chain VASP-to-VASP exchange (e.g., TRP/TAP-style protocols) rather than embedding identity data on-chain. Privacy-enhancing techniques (selective disclosure, ZK) should be first-class, so compliance can be proven without data exposure. The rules themselves, and how aggressively they are enforced, remain the implementer's value layer and jurisdictional responsibility.
+
+Here `canTransfer` names an OTAS interface convention, not the ERC-3643 function of the same name. It fixes the query shape and the result semantics (allow, or deny with a reason code); enforcement binds to whichever native mechanism the rail provides, reusing the three patterns above: ERC-3643 registries and modular compliance on EVM, a Sui PAS `Policy<T>` resolved by approval witnesses, or a Solana transfer hook. The intended contribution is the common result vocabulary across those mechanisms, so a counterparty on any rail reads the same allow/deny plus reason code.
 
 ### 6.4 Asset Metadata
 
@@ -308,15 +319,15 @@ A token's design is shaped less by its asset class than by **who stands behind i
 
 ## 8. Reference Flows
 
-These narrative flows illustrate how the primitives compose. They are conceptual, not implementation commitments.
+These narrative flows illustrate how the primitives compose. They are conceptual, not implementation commitments. Each flow assumes the tokens involved are already modeled as OTAS objects (Section 5.4), whether natively or by observation, and it names the OTAS interface exercised at each step. The interface is the common contract; enforcement of each step binds to whatever native mechanism the rail provides, as summarized in Section 5.3.
 
 **Flow A: Cross-rail DvP of a tokenized sovereign bond against a tokenized deposit.**
 
-1. Bond token (`FractionalUniqueBase`, `Restricted`, `IncomeBearing`) lives on Rail X; deposit token (`FungibleBase`, `Restricted`, `AtomicLeg`) lives on Rail Y.
-2. Both parties' wallets resolve eligibility via the identity layer (VC presentations / ONCHAINID), producing eligibility proofs, with no PII moving.
-3. Each token's `canTransfer` returns allow with no blocking reason codes (pre-trade check).
-4. A settlement coordinator references both `AtomicLeg`s in a single `SettlementProposed`, declaring the cash-leg trust tier (commercial-bank deposit).
-5. Cross-ledger atomicity is achieved via the chosen mechanism (HTLC/escrow/shared-ledger); on success both legs emit `Settled`; on failure both `Aborted`. Principal risk is removed.
+1. Bond token (`FractionalUniqueBase`, `Restricted`, `IncomeBearing`) lives on Rail X; deposit token (`FungibleBase`, `Restricted`, `AtomicLeg`) lives on Rail Y. Both are modeled as OTAS objects per Section 5.4.
+2. **Identity interface.** Both parties' wallets resolve eligibility via the identity layer, producing eligibility proofs, with no PII moving.
+3. **Compliance interface (`canTransfer`).** Each token's OTAS `canTransfer` returns allow with no blocking reason codes: a pre-settlement check, so any blocking condition is knowable before settlement is proposed. On each rail this binds to the native mechanism (ERC-3643 registries, a Sui PAS `Policy<T>`/approval witnesses, or a Solana transfer hook).
+4. **Settlement interface (`AtomicLeg` / `SettlementProposed`).** A settlement coordinator references both `AtomicLeg`s in a single `SettlementProposed`, declaring the cash-leg trust tier (commercial-bank deposit).
+5. **Settlement interface (`Settled` / `Aborted`).** Cross-ledger atomicity is achieved via the chosen mechanism (HTLC/escrow/shared-ledger); on success both legs emit `Settled`; on failure both `Aborted`. Principal risk is removed.
 
 **Flow B: Coupon servicing across holders on a public chain.**
 
