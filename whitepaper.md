@@ -199,7 +199,7 @@ This is intentionally a strawman to be torn apart in review, expressed as neutra
 
 **Canonical event schema** (rail-neutral, so any indexer can reconcile)
 
-- `Issued`, `Transferred`, `Burned`, `Frozen`/`Unfrozen`, `ForcedTransfer`, `Paused`/`Unpaused`, `EligibilityChecked(result)`, `SettlementProposed`/`Settled`/`Aborted`, `ServicingEvent(type)`, `MetadataAnchored(hash)`.
+- `Issued`, `Transferred`, `Burned`, `Frozen`/`Unfrozen`, `ForcedTransfer`, `Paused`/`Unpaused`, `EligibilityChecked(result)`, `SettlementProposed`/`Committed`/`Settled`/`Aborted`, `ServicingEvent(type)`, `MetadataAnchored(hash)`.
 
 **Discovery.** A token should expose a machine-readable capability/behavior manifest (which behaviors it implements, which policy/registry it points to, which metadata anchor it uses), so a counterparty's system can determine compatibility before transacting, analogous to a Sui PAS `Policy<T>`, whose required approvals are readable before a request is submitted, and to ERC-3643's pre-trade `canTransfer` check.
 
@@ -215,6 +215,15 @@ This is intentionally a strawman to be torn apart in review, expressed as neutra
 | **MetadataAnchored** | Token URI / registry | Coin Registry / object field | Metadata pointer | On-chain ref + off-chain store |
 
 The point of the table is that **the same function has a home in every environment**, which is precisely what makes a thin interface standard feasible rather than utopian.
+
+### 5.4 Modeling an existing token as an OTAS object: native vs. observed
+
+The primitives in Section 5.2 describe a token as a base type plus behaviors plus a capability manifest. A token already deployed on a rail does not necessarily carry those OTAS labels, so before reference flows like those in Section 8 can treat it uniformly, its native facts have to be read in OTAS terms somehow. It may help to picture this as a spectrum, with two ends worth naming:
+
+- **Native mapping.** The token is issued to conform, with its base type, behaviors, and capability manifest declared against OTAS conventions from the start (for example, an ERC-3643 deployment, or a Sui PAS `Policy<T>` whose required approvals are published as the token's compliance behavior). Here the OTAS description tends to originate with the issuer.
+- **Observed mapping.** The token predates or ignores OTAS, and tooling infers a description by reading on-chain facts (interfaces implemented, registries and policies referenced, extensions enabled, capability objects held). Such a description is only as reliable as what the chain exposes: some properties are directly observable, others may not be confirmable from on-chain state alone.
+
+Most real tokens will likely sit somewhere between these ends. Where a given case falls, and how much corroboration an observed description needs before a counterparty relies on it, is left open here. For the flows that follow, the point is only that they operate on the same OTAS object either way; what differs is where its description came from.
 
 ## 6. The Four Layers in Depth
 
@@ -232,7 +241,13 @@ The OTAS community has prioritized four layers. We treat each as a function to b
 
 **The landscape (illustrative).** A two-tier structure is emerging: a central-bank settlement layer (tokenized reserves) beneath a commercial-bank layer (tokenized deposits). Notable initiatives include the BIS **Project Agorá** (a unified-ledger prototype combining tokenized commercial-bank deposits with tokenized central-bank reserves for atomic, multi-currency cross-border settlement, convened with multiple central banks and 40+ financial institutions), earlier BIS/central-bank work such as **Helvetia**, **Jura**, **mBridge**, and **Dunbar**, and private/consortium rails such as **Partior**, **Fnality**, the **Regulated Liability/Settlement Network (RLN/RSN)**, **SIX Digital Exchange (SDX)** (where CHF tokens backed one-to-one by central-bank reserves settle tokenized securities), **Euroclear's D-FMI**, **DTCC's** digital efforts, and **J.P. Morgan's Kinexys** (deposit-token and repo settlement). Interoperability providers (e.g., Ownera) aim to connect these rails.
 
-**What a standard should (and should not) do here.** It should define a **rail-neutral settlement instruction primitive**: an `AtomicLeg` that can be referenced by a settlement coordinator on any rail, with a canonical `SettlementProposed -> Settled | Aborted` event lifecycle, an explicit declaration of the settlement asset and its trust tier, and hooks for cross-ledger atomicity patterns (HTLC, escrow/notary, shared-ledger). It should **not** prescribe a single settlement venue, a single cash token, or a single cross-chain mechanism. The convergence value is a common description of a settlement leg that lets a tokenized bond on one rail and a tokenized deposit on another be coordinated without either party migrating infrastructure.
+**What a standard should (and should not) do here.** It should define a **rail-neutral settlement instruction primitive**: an `AtomicLeg` that can be referenced by a settlement coordinator on any rail, with a canonical settlement event lifecycle, an explicit declaration of the settlement asset and its trust tier, and hooks for cross-ledger atomicity patterns (HTLC, escrow/notary, shared-ledger). It should **not** prescribe a single settlement venue, a single cash token, or a single cross-chain mechanism. The convergence value is a common description of a settlement leg that lets a tokenized bond on one rail and a tokenized deposit on another be coordinated without either party migrating infrastructure.
+
+**Finality: technical and legal.** Atomic settlement, as described above, delivers **technical finality**: the ledger-level guarantee that linked legs either all complete or all revert. This is worth separating from **legal finality**: the point at which settlement is irrevocable and unconditional, good against an insolvent participant and recognized under the applicable legal framework. The two are not necessarily the same moment. A settlement system's rules should distinguish the point after which an instruction may no longer be revoked from the point at which settlement is final. Legal finality is a legally defined moment that depends on the governing jurisdiction and its insolvency law, is often established by a reasoned legal opinion, and is rarely harmonized across borders.
+
+Technical finality is itself not uniform across rails. Some ledgers offer deterministic, single-block finality, while others are probabilistic, where a settled-looking transfer carries a residual reorganization risk that decays over time. A standard that speaks to settlement should therefore let both the finality model and the finality moment be declared, rather than assuming atomicity delivers either on its own.
+
+To give these distinctions somewhere to attach, the settlement lifecycle can carry an explicit `Committed` state between proposal and final settlement: `SettlementProposed -> Committed -> Settled | Aborted`. Once the coordinator holds both legs' states, the instruction moves to `Committed`, meaning it is enqueued, will not be lost, and can no longer be revoked by a participant. The revocability boundary sits at the transition into `Committed`, which is a natural place for a rulebook to anchor legal finality; final settlement is then marked by `Settled`. Whether an instruction may still `Abort` after `Committed`, for example on an exceptional technical failure, is left to the rulebook. In all cases OTAS would provide the construct to express which moment governs and under which finality model, not the legal determination itself, which remains the operator's and the jurisdiction's responsibility.
 
 **Open tension.** Instant atomic settlement requires pre-funding of both legs, which can strain liquidity in fragmented markets; the standard should make liquidity-saving mechanisms (netting windows, conditional/queued settlement) describable, not impossible.
 
@@ -263,7 +278,9 @@ The OTAS community has prioritized four layers. We treat each as a function to b
 - **Per-action policy plus typed approvals** (Sui PAS): a `Policy<T>` declares which approval witnesses each action requires, and a request resolves only when the witnesses collected match that set exactly.
 - **Transfer-time program hooks** (Solana transfer hooks; Fabric endorsement): custom logic invoked on movement.
 
-**What a standard should do here.** Standardize the **compliance-signaling interface and result semantics**, not the rule engine. Concretely: a `canTransfer(from, to, amount, context) -> {allow | deny + reason-code}` contract with **standard, machine-readable reason codes** (e.g., `INELIGIBLE_RECEIVER`, `JURISDICTION_BLOCKED`, `HOLDER_CAP_EXCEEDED`, `LOCKUP_ACTIVE`, `SANCTIONS_HIT`, `TRAVEL_RULE_PENDING`), a **pre-trade check** so failures are knowable before submission, and a **Travel-Rule handshake hook** that references an off-chain VASP-to-VASP exchange (e.g., TRP/TAP-style protocols) rather than embedding identity data on-chain. Privacy-enhancing techniques (selective disclosure, ZK) should be first-class, so compliance can be proven without data exposure. The rules themselves, and how aggressively they are enforced, remain the implementer's value layer and jurisdictional responsibility.
+**What a standard should do here.** Standardize the **compliance-signaling interface and result semantics**, not the rule engine. Concretely: a `canTransfer(from, to, amount, context) -> {allow | deny + reason-code}` contract with **standard, machine-readable reason codes** (e.g., `INELIGIBLE_RECEIVER`, `JURISDICTION_BLOCKED`, `HOLDER_CAP_EXCEEDED`, `LOCKUP_ACTIVE`, `SANCTIONS_HIT`, `TRAVEL_RULE_PENDING`), a **pre-settlement check** so failures are knowable before a settlement instruction is submitted, and a **Travel-Rule handshake hook** that references an off-chain VASP-to-VASP exchange (e.g., TRP/TAP-style protocols) rather than embedding identity data on-chain. Privacy-enhancing techniques (selective disclosure, ZK) should be first-class, so compliance can be proven without data exposure. The rules themselves, and how aggressively they are enforced, remain the implementer's value layer and jurisdictional responsibility.
+
+Here `canTransfer` names an OTAS interface convention, not the ERC-3643 function of the same name. It fixes the query shape and the result semantics (allow, or deny with a reason code); enforcement binds to whichever native mechanism the rail provides, reusing the three patterns above: ERC-3643 registries and modular compliance on EVM, a Sui PAS `Policy<T>` resolved by approval witnesses, or a Solana transfer hook. The intended contribution is the common result vocabulary across those mechanisms, so a counterparty on any rail reads the same allow/deny plus reason code.
 
 ### 6.4 Asset Metadata
 
@@ -308,15 +325,16 @@ A token's design is shaped less by its asset class than by **who stands behind i
 
 ## 8. Reference Flows
 
-These narrative flows illustrate how the primitives compose. They are conceptual, not implementation commitments.
+These narrative flows illustrate how the primitives compose. They are conceptual, not implementation commitments. Each flow assumes the tokens involved are already modeled as OTAS objects (Section 5.4), whether natively or by observation, and it names the OTAS interface exercised at each step. The interface is the common contract; enforcement of each step binds to whatever native mechanism the rail provides, as summarized in Section 5.3.
 
 **Flow A: Cross-rail DvP of a tokenized sovereign bond against a tokenized deposit.**
 
-1. Bond token (`FractionalUniqueBase`, `Restricted`, `IncomeBearing`) lives on Rail X; deposit token (`FungibleBase`, `Restricted`, `AtomicLeg`) lives on Rail Y.
-2. Both parties' wallets resolve eligibility via the identity layer (VC presentations / ONCHAINID), producing eligibility proofs, with no PII moving.
-3. Each token's `canTransfer` returns allow with no blocking reason codes (pre-trade check).
-4. A settlement coordinator references both `AtomicLeg`s in a single `SettlementProposed`, declaring the cash-leg trust tier (commercial-bank deposit).
-5. Cross-ledger atomicity is achieved via the chosen mechanism (HTLC/escrow/shared-ledger); on success both legs emit `Settled`; on failure both `Aborted`. Principal risk is removed.
+1. Bond token (`FractionalUniqueBase`, `Restricted`, `IncomeBearing`) lives on Rail X; deposit token (`FungibleBase`, `Restricted`, `AtomicLeg`) lives on Rail Y. Both are modeled as OTAS objects per Section 5.4.
+2. **Identity interface.** Both parties' wallets resolve eligibility via the identity layer, producing eligibility proofs, with no PII moving.
+3. **Compliance interface (`canTransfer`).** Each token's OTAS `canTransfer` returns allow with no blocking reason codes: a pre-settlement check, so any blocking condition is knowable before settlement is proposed. On each rail this binds to the native mechanism (ERC-3643 registries, a Sui PAS `Policy<T>`/approval witnesses, or a Solana transfer hook).
+4. **Settlement interface (`AtomicLeg` / `SettlementProposed`).** A settlement coordinator references both `AtomicLeg`s in a single `SettlementProposed`, declaring the cash-leg trust tier (commercial-bank deposit).
+5. **Settlement interface (`Committed`).** Once the coordinator holds both legs' states, the instruction moves to `Committed`: enqueued, no longer revocable by either participant, and the point at which a rulebook can anchor legal finality.
+6. **Settlement interface (`Settled` / `Aborted`).** Cross-ledger atomicity is achieved via the chosen mechanism (HTLC/escrow/shared-ledger); on success both legs emit `Settled`; on failure both `Aborted`. Principal risk is removed.
 
 **Flow B: Coupon servicing across holders on a public chain.**
 
@@ -334,7 +352,7 @@ These narrative flows illustrate how the primitives compose. They are conceptual
 This inquiry stands on substantial existing work and should cite and defer to it rather than duplicate it:
 
 - **Standards bodies and consortia.** The InterWork Alliance **Token Taxonomy Framework** (base/behavior/property meta-model) is the most direct conceptual ancestor of "composable primitives." The **ERC** process (notably ERC-20, ERC-1400, ERC-3643/T-REX, ERC-4626) provides battle-tested interface patterns and a working on-chain compliance model. **W3C** DIDs and Verifiable Credentials, **OpenID4VC/VP**, **Trust over IP**, and **eIDAS 2.0** define the identity substrate. **ISO 20022**, **FIX**, and **FpML** define the financial-data semantics metadata should align with.
-- **Central-bank and policy research.** BIS Innovation Hub work on the **unified ledger** and projects **Agorá, Helvetia, Jura, mBridge, and Dunbar**; CPMI/BIS analyses of **wholesale CBDC / tokenized reserves**; the **EBA report on tokenised deposits**; and **IMF** notes on tokenized finance and central-bank exploration of tokenized reserves collectively define the settlement-layer design space, the two-tier money structure, and the atomic-settlement evidence base.
+- **Central-bank and policy research.** BIS Innovation Hub work on the **unified ledger** and projects **Agorá, Helvetia, Jura, mBridge, and Dunbar**; the **CPMI-IOSCO Principles for Financial Market Infrastructures (PFMI)**, whose Principle 8 on settlement finality anchors the technical-versus-legal finality distinction (Section 6.1); CPMI/BIS analyses of **wholesale CBDC / tokenized reserves**; the **EBA report on tokenised deposits**; and **IMF** notes on tokenized finance and central-bank exploration of tokenized reserves collectively define the settlement-layer design space, the two-tier money structure, and the atomic-settlement evidence base.
 - **Academic literature.** Peer-reviewed and preprint work on asset-backed/open-asset protocols, privacy-enhancing technologies for the FATF Travel Rule, zero-knowledge-based decentralized identity and verifiable data sharing, and the economics of tokenized settlement (e.g., WEF/industry estimates of underwriting-fee and spread reductions on tokenized bonds) inform the identity, compliance, and settlement layers.
 
 ## 10. Appendices
@@ -342,6 +360,8 @@ This inquiry stands on substantial existing work and should cite and defer to it
 ### 10.1 Glossary
 
 - **Atomic settlement:** all-or-nothing execution of linked transfers; the basis of DvP/PvP.
+- **Technical vs. legal finality:** technical finality is the ledger-level guarantee that linked legs all complete or all revert; legal finality is the jurisdiction-defined point at which settlement is irrevocable and unconditional, good against an insolvent participant.
+- **Committed (settlement state):** a proposed lifecycle state in which the coordinator holds both legs' states, the instruction is enqueued and no longer revocable by a participant, and legal finality can be anchored, ahead of final `Settled`.
 - **DvP / PvP:** delivery-versus-payment (asset vs. cash) / payment-versus-payment (currency vs. currency).
 - **Tokenized deposit:** a commercial-bank deposit represented on a ledger; a bank liability.
 - **Wholesale CBDC / tokenized reserves:** central-bank money on a ledger for interbank settlement.
@@ -386,3 +406,4 @@ Contributions require a signed Developer Certificate of Origin (DCO). Specificat
 14. W3C. Decentralized Identifiers (DID) v1.0; Verifiable Credentials Data Model. (See W3C Recommendations, 2022.)
 15. Academic/preprint: Privacy-enhancing technologies for the FATF Travel Rule; ZK-based decentralized identity & verifiable data sharing (arXiv:2510.09715; arXiv:2012.00136); IEEE "Open Asset Protocol on Blockchain."
 16. Industry/issuer references: BlackRock BUIDL, Franklin Templeton FOBXX/BENJI, Ondo OUSG/OGM, J.P. Morgan Kinexys/MONY/JLTXX, Citi Token Services, UBS/SDX and AIIB/Euroclear digital bonds, MAS Project Guardian (compiled from public reporting).
+17. CPMI-IOSCO. *Principles for Financial Market Infrastructures* (PFMI), Principle 8: Settlement finality. https://www.bis.org/cpmi/publ/d101a.pdf
