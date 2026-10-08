@@ -8,7 +8,7 @@ OTAS is an open-source LFDT effort and welcomes **researchers, protocol develope
 
 New here? Start with these:
 
-- 📖 **[Read the whitepaper (v0.1)](https://github.com/OpenTokenizedAssetStandard/whitepaper/blob/whitepaper-v0.1/whitepaper.md)**
+- 📖 **[Read the whitepaper (v0.2)](https://github.com/OpenTokenizedAssetStandard/whitepaper/blob/whitepaper-v0.2/whitepaper.md)**
 - 👋 **[Introduce yourself in the welcome discussion](https://github.com/OpenTokenizedAssetStandard/whitepaper/discussions/7)**
 
 ---
@@ -60,7 +60,7 @@ Changes are proposed through pull requests from your own fork of the repository.
 >
 > And if you're working on one of the verticals related to OTAS, we'd love to hear about it, please keep us posted on where we might collaborate or help contribute.
 
-Throughout, replace `<your-username>` with your GitHub username, and treat `whitepaper-v0.1` as the current default development branch (unless an issue tells you otherwise).
+Throughout, replace `<your-username>` with your GitHub username, and treat `main` as the current default development branch (unless an issue tells you otherwise). Versioned `whitepaper-v0.x` branches are release snapshots cut from `main`, so please don't target them directly.
 
 ### 1. Fork the repository
 
@@ -98,7 +98,7 @@ Start from the latest upstream state, and never commit to the default branch dir
 
 ```bash
 git fetch upstream
-git checkout -b add-legal-finality upstream/whitepaper-v0.1
+git checkout -b add-legal-finality upstream/main
 ```
 
 Use a short, descriptive branch name, e.g. `add-legal-finality`, `fix-broken-link`.
@@ -118,7 +118,7 @@ git commit -s -m "Add legal-finality subsection to §6.1"
 
 If the sign-off is missing or the identity doesn't match, the DCO check fails — see the [DCO section](#developer-certificate-of-origin-dco) to fix it.
 
-> If upstream changes while you work, catch up with `git pull --rebase upstream whitepaper-v0.1`.
+> If upstream changes while you work, catch up with `git pull --rebase upstream main`.
 
 ### 8. Push to your fork
 
@@ -128,7 +128,7 @@ git push origin add-legal-finality
 
 ### 9. Open the pull request
 
-On GitHub, your fork shows a **Compare & pull request** button. Open the PR against the base repository (`OpenTokenizedAssetStandard/whitepaper`), targeting the `whitepaper-v0.1` branch. Fill in the template and link the issue — `Closes #123` or `Refs #123`.
+On GitHub, your fork shows a **Compare & pull request** button. Open the PR against the base repository (`OpenTokenizedAssetStandard/whitepaper`), targeting the `main` branch. Fill in the template and link the issue — `Closes #123` or `Refs #123`.
 
 ### 10. Respond to review
 
@@ -144,7 +144,7 @@ All checks (including DCO) must pass before a maintainer can merge.
 ### 11. After your PR is merged
 
 ```bash
-git checkout whitepaper-v0.1
+git checkout main
 git branch -d add-legal-finality
 ```
 

@@ -1,6 +1,6 @@
 # Open Tokenized Asset Standard (OTAS): Whitepaper
 
-[![LFDT Lab](https://img.shields.io/badge/LF%20Decentralized%20Trust-Lab-blue)](https://www.lfdecentralizedtrust.org/)  [![Status: Draft v0.1](https://img.shields.io/badge/status-draft%20v0.1-orange)](./whitepaper.md)  [![License: CC BY 4.0](https://img.shields.io/badge/license-CC--BY--4.0-lightgrey)](./LICENSE.md)
+[![LFDT Lab](https://img.shields.io/badge/LF%20Decentralized%20Trust-Lab-blue)](https://www.lfdecentralizedtrust.org/)  [![Status: Draft v0.2](https://img.shields.io/badge/status-draft%20v0.2-orange)](./whitepaper.md)  [![License: CC BY 4.0](https://img.shields.io/badge/license-CC--BY--4.0-lightgrey)](./LICENSE.md)
 
 The **OTAS community whitepaper** explores whether a small set of composable token primitives can serve as a convergence layer for post-trade clearing, settlement, and compliance across heterogeneous distributed ledgers.
 
@@ -14,7 +14,7 @@ OTAS explores a thin, protocol-agnostic **interface layer** that standardizes th
 
 ## Read the whitepaper
 
-**[OTAS Whitepaper v0.1 (draft for review)](./whitepaper.md)**
+**[OTAS Whitepaper v0.2 (draft for review)](./whitepaper.md)**
 
 It surveys existing token standards across the EVM, Sui, Solana, and Hyperledger ecosystems, proposes a composable primitive/behavior/event model, and develops four layers (Settlement, Identity, Compliance, and Asset Metadata) alongside a comparison of bank, financial-firm, and sovereign issuers, set against a fast-evolving regulatory landscape.
 
