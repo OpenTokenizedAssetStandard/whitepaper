@@ -43,7 +43,7 @@ This whitepaper explores whether a small set of **composable token primitives** 
 
 The paper does four things:
 
-- **Surveys** the major on-chain token standards: the EVM/Ethereum family (ERC-20, ERC-721, ERC-1155, ERC-1400, ERC-3643/T-REX, ERC-4626), Sui's Move object model, Solana's SPL and Token-2022 extensions, permissioned enterprise models (Hyperledger Fabric Token SDK / Panurus, Besu, Corda), and the implementation-neutral InterWork Alliance Token Taxonomy Framework. It identifies where they converge and where they diverge.
+- **Surveys** the major on-chain token standards: the EVM/Ethereum family (ERC-20, ERC-721, ERC-1155, ERC-1400, ERC-3643/T-REX, ERC-7943/uRWA, ERC-4626), Sui's Move object model, Solana's SPL and Token-2022 extensions, permissioned enterprise models (Hyperledger Fabric Token SDK / Panurus, Besu, Corda), and the implementation-neutral InterWork Alliance Token Taxonomy Framework. It identifies where they converge and where they diverge.
 - **Proposes** a primitive model organized as a token base type + composable behaviors + event schema, expressible across heterogeneous execution environments.
 - **Develops the four layers** the OTAS community has prioritized (**Settlement Networks, Identity, Compliance, and Asset Metadata**) and adds two cross-cutting concerns (lifecycle/asset servicing and privacy).
 - **Compares issuer archetypes** (banks, asset managers and other financial firms, and sovereigns/central banks), because the trust anchor behind a token (central-bank money, commercial-bank liability, fund NAV, sovereign credit) materially changes what a standard must accommodate.
@@ -106,9 +106,10 @@ The EVM ecosystem standardizes token interfaces via ERC specifications layered o
 - **ERC-1155 (multi-token).** A single contract managing many fungible and non-fungible token types with batch operations, efficient for collections of related instruments.
 - **ERC-1400 (security token).** Introduces partitions (tranches) and an off-chain-validation pattern: a transfer is checked via functions such as `canTransferByPartition`, which typically consults an external controller or oracle. It prioritizes operational flexibility and a familiar investor experience by keeping much eligibility logic off-chain.
 - **ERC-3643 / T-REX (permissioned token).** An ERC-20-compatible suite that embeds compliance and identity enforcement on-chain. Transfers succeed only when both the parties' eligibility (via an on-chain identity, ONCHAINID) and the offering's global compliance rules pass. Core components include an **Identity Registry**, a **Trusted Issuers Registry**, a **Claim Topics Registry**, and a modular **Compliance** contract; the standard specifies `isVerified` (party eligibility) and `canTransfer` (global rules such as max-holders or per-investor caps), plus operational controls: forced transfers, partial/total freeze, pause, key-recovery, and batch operations. ONCHAINID itself builds on the ERC-734/735 key-and-claim model and stores references and hashes rather than raw PII. ERC-3643 reached Final EIP status and is stewarded by the ERC-3643 Association; it is the most widely adopted on-chain compliance pattern for regulated real-world assets.
+- **ERC-7943 / uRWA (minimal compliance interface).** A Final-status interface that adds compliance and enforcement functions to an ERC-20, ERC-721, or ERC-1155 token without prescribing how eligibility is decided. It specifies directional eligibility queries (`canSend`, `canReceive`) and a transfer-level query (`canTransfer`), an absolute per-holder frozen amount (`getFrozenTokens`/`setFrozenTokens`), and an enforcement transfer (`forcedTransfer`), with standard errors that tell a caller which side of a transfer failed, plus `Frozen` and `ForcedTransfer` events. It carries no identity model or registry, so the eligibility source (on-chain allowlist, ONCHAINID, credential verifier) remains an implementation choice.
 - **ERC-4626 (tokenized vault).** Standardizes deposit/withdraw/share-accounting for yield-bearing vaults, relevant to tokenized funds and structured products.
 
-**Takeaway.** The EVM family shows a clear progression from unrestricted fungibility (ERC-20) to on-chain, identity-bound compliance (ERC-3643). The two dominant security-token approaches differ primarily on **where eligibility is decided**: off-chain validation (ERC-1400) versus on-chain registries (ERC-3643). Both remain ERC-20-compatible, which is the practical anchor for interoperability.
+**Takeaway.** The EVM family shows a clear progression from unrestricted fungibility (ERC-20) to on-chain, identity-bound compliance (ERC-3643). The two dominant security-token approaches differ primarily on **where eligibility is decided**: off-chain validation (ERC-1400) versus on-chain registries (ERC-3643). ERC-7943 standardizes the query and enforcement surface while leaving that choice open, which is close in spirit to the thin-interface approach this paper proposes. All remain ERC-20-compatible, which is the practical anchor for interoperability.
 
 ### 4.2 Sui: the Move object model
 
@@ -208,9 +209,9 @@ This is intentionally a strawman to be torn apart in review, expressed as neutra
 | Primitive/behavior | EVM expression | Sui expression | Solana expression | Fabric/UTXO expression |
 |:-:|:-:|:-:|:-:|:-:|
 | **FungibleBase** | ERC-20 | Coin\<T\>/Currency (object or address balance) | SPL mint | UTXO token |
-| **Restricted** | ERC-3643 canTransfer/isVerified | PAS `Policy<T>` + approval witness | Transfer hook | Chaincode endorsement |
-| **Freezable** | Agent freeze | DenyList + DenyCap; withheld PAS approval | Default-state / permanent delegate | Issuer policy |
-| **ForceTransferable** | ERC-3643 forced transfer | PAS `clawback_funds` | Permanent delegate | Issuer-signed tx |
+| **Restricted** | ERC-3643 canTransfer/isVerified; ERC-7943 canSend/canReceive/canTransfer | PAS `Policy<T>` + approval witness | Transfer hook | Chaincode endorsement |
+| **Freezable** | Agent freeze; ERC-7943 setFrozenTokens | DenyList + DenyCap; withheld PAS approval | Default-state / permanent delegate | Issuer policy |
+| **ForceTransferable** | ERC-3643 forced transfer; ERC-7943 forcedTransfer | PAS `clawback_funds` | Permanent delegate | Issuer-signed tx |
 | **ConfidentialAmount** | L2s/ZK | App-level/ZK | Confidential transfer ext. | Native selective disclosure |
 | **MetadataAnchored** | Token URI / registry | Coin Registry / object field | Metadata pointer | On-chain ref + off-chain store |
 
@@ -376,7 +377,7 @@ This inquiry stands on substantial existing work and should cite and defer to it
 
 ### 10.2 Standards & projects index (for the survey)
 
-EVM: ERC-20, ERC-721, ERC-1155, ERC-1400, ERC-3643/T-REX, ERC-4626, ERC-734/735 (ONCHAINID). Sui: Coin/Currency, Address Balances, Permissioned Asset Standard (PAS), Closed-Loop Token, Coin Registry, DenyList, capabilities. Solana: SPL Token, Token-2022 extensions. Enterprise: Hyperledger Fabric Token SDK / Panurus, Besu, Corda. Meta-model: InterWork Alliance TTF. Identity/compliance: W3C DID & VC, OpenID4VC/VP, ToIP, eIDAS 2.0, FATF Travel Rule, MiCA/AMLR, GENIUS Act. Settlement: BIS Agorá/Helvetia/Jura/mBridge/Dunbar, Partior, Fnality, RLN/RSN, SDX, Euroclear D-FMI, DTCC, J.P. Morgan Kinexys.
+EVM: ERC-20, ERC-721, ERC-1155, ERC-1400, ERC-3643/T-REX, ERC-7943/uRWA, ERC-4626, ERC-734/735 (ONCHAINID). Sui: Coin/Currency, Address Balances, Permissioned Asset Standard (PAS), Closed-Loop Token, Coin Registry, DenyList, capabilities. Solana: SPL Token, Token-2022 extensions. Enterprise: Hyperledger Fabric Token SDK / Panurus, Besu, Corda. Meta-model: InterWork Alliance TTF. Identity/compliance: W3C DID & VC, OpenID4VC/VP, ToIP, eIDAS 2.0, FATF Travel Rule, MiCA/AMLR, GENIUS Act. Settlement: BIS Agorá/Helvetia/Jura/mBridge/Dunbar, Partior, Fnality, RLN/RSN, SDX, Euroclear D-FMI, DTCC, J.P. Morgan Kinexys.
 
 ### 10.3 How to contribute
 
@@ -407,3 +408,4 @@ Contributions require a signed Developer Certificate of Origin (DCO). Specificat
 15. Academic/preprint: Privacy-enhancing technologies for the FATF Travel Rule; ZK-based decentralized identity & verifiable data sharing (arXiv:2510.09715; arXiv:2012.00136); IEEE "Open Asset Protocol on Blockchain."
 16. Industry/issuer references: BlackRock BUIDL, Franklin Templeton FOBXX/BENJI, Ondo OUSG/OGM, J.P. Morgan Kinexys/MONY/JLTXX, Citi Token Services, UBS/SDX and AIIB/Euroclear digital bonds, MAS Project Guardian (compiled from public reporting).
 17. CPMI-IOSCO. *Principles for Financial Market Infrastructures* (PFMI), Principle 8: Settlement finality. https://www.bis.org/cpmi/publ/d101a.pdf
+18. Ethereum. ERC-7943: uRWA - Universal Real World Asset Interface (Final). https://eips.ethereum.org/EIPS/eip-7943
